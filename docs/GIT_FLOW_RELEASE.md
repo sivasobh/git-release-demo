@@ -181,7 +181,7 @@ git push origin --delete release/v1.2.3
 ## Configuration Requirements
 
 ### GitHub Token
-Ensure `GITHUB_TOKEN` has these permissions:
+Ensure `GIT_TOKEN` has these permissions:
 - `contents: write` (for releases, tags, branches)
 - `pull-requests: write` (for creating PRs)
 
