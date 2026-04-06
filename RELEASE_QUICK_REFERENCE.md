@@ -68,7 +68,7 @@ develop ──→ release/v1.2.3 ───→ main (production)
 ✓ **Version file updates** - package.json, VERSION, setup.py  
 ✓ **Automated tagging** - Creates annotated tags  
 ✓ **GitHub Releases** - Auto-generated changelog  
-✓ **PR automation** - Creates merge PRs automatically  
+✓ **PR automation** - Creates merge PRs automatically (requires token permissions)  
 ✓ **No external dependencies** - Pure Git + GitHub Actions  
 
 ## Next Steps
