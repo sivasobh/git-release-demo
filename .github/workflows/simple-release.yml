@@ -1,4 +1,4 @@
-name: Custom Release
+name: Simple Release (No PRs)
 
 on:
   workflow_dispatch:
@@ -11,17 +11,12 @@ on:
           - patch
           - minor
           - major
-      release_branch:
-        description: 'Create from release branch (leave empty to auto-detect or use develop)'
-        required: false
-        default: ''
 
 jobs:
-  create-release:
+  create-simple-release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     outputs:
       new_version: ${{ steps.version.outputs.new_version }}
     steps:
@@ -41,15 +36,15 @@ jobs:
         run: |
           # Get the latest tag matching v*.*.* pattern
           CURRENT_VERSION=$(git describe --tags --match 'v*.*.*' --abbrev=0 2>/dev/null || echo "v0.0.0")
-          
+
           # Remove 'v' prefix for processing
           VERSION_NUM=${CURRENT_VERSION#v}
-          
+
           # Parse version components
           MAJOR=$(echo $VERSION_NUM | cut -d. -f1)
           MINOR=$(echo $VERSION_NUM | cut -d. -f2)
           PATCH=$(echo $VERSION_NUM | cut -d. -f3)
-          
+
           # Calculate new version based on input
           case "${{ github.event.inputs.version_type }}" in
             major)
@@ -68,9 +63,9 @@ jobs:
               NEW_PATCH=$((PATCH + 1))
               ;;
           esac
-          
+
           NEW_VERSION="v${NEW_MAJOR}.${NEW_MINOR}.${NEW_PATCH}"
-          
+
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "✓ Current version: $CURRENT_VERSION"
@@ -80,21 +75,13 @@ jobs:
         run: |
           NEW_VERSION=${{ steps.version.outputs.new_version }}
           RELEASE_BRANCH="release/${NEW_VERSION}"
-          
-          # Derive base branch: use input if provided, otherwise use develop or main
-          BASE_BRANCH="${{ github.event.inputs.release_branch }}"
-          if [ -z "$BASE_BRANCH" ]; then
-            # Try develop first, fall back to main
-            if git rev-parse --verify origin/develop > /dev/null 2>&1; then
-              BASE_BRANCH="develop"
-            else
-              BASE_BRANCH="main"
-            fi
-          fi
-          
+
+          # Use develop as base branch since it's default
+          BASE_BRANCH="develop"
+
           echo "Creating release branch from $BASE_BRANCH"
           git checkout -b "$RELEASE_BRANCH" "origin/$BASE_BRANCH"
-          
+
           echo "release_branch=$RELEASE_BRANCH" >> $GITHUB_ENV
           echo "base_branch=$BASE_BRANCH" >> $GITHUB_ENV
 
@@ -102,23 +89,23 @@ jobs:
         run: |
           NEW_VERSION=${{ steps.version.outputs.new_version }}
           VERSION_NUM=${NEW_VERSION#v}
-          
+
           # Update common version files
           if [ -f "package.json" ]; then
             sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION_NUM}\"/" package.json
             git add package.json
           fi
-          
+
           if [ -f "VERSION" ] || [ -f "version.txt" ]; then
             echo "$VERSION_NUM" > VERSION
             git add VERSION
           fi
-          
+
           if [ -f "setup.py" ]; then
             sed -i "s/version=\"[^\"]*\"/version=\"${VERSION_NUM}\"/" setup.py
             git add setup.py
           fi
-          
+
           if git diff --cached --quiet; then
             echo "No version files updated"
           else
@@ -146,48 +133,6 @@ jobs:
           generateReleaseNotes: true
           makeLatest: true
 
-      - name: Create Pull Request to main
-        if: env.base_branch != 'main'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            try {
-              const { data: pr } = await github.rest.pulls.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: `Merge release ${{ steps.version.outputs.new_version }} to main`,
-                head: `${{ env.release_branch }}`,
-                base: 'main',
-                body: `# Release ${{ steps.version.outputs.new_version }}\n\nAutomatic merge from release branch.\n\nChangelog will be auto-generated.`
-              });
-              console.log(`Created PR #${pr.number}`);
-            } catch (error) {
-              console.log(`Note: Could not create PR to main: ${error.message}`);
-              console.log(`Release branch: ${{ env.release_branch }}`);
-              console.log(`You can manually create a PR from ${{ env.release_branch }} to main`);
-            }
-
-      - name: Create Pull Request back to develop
-        if: env.base_branch == 'develop'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            try {
-              const { data: pr } = await github.rest.pulls.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: `Merge release ${{ steps.version.outputs.new_version }} back to develop`,
-                head: `${{ env.release_branch }}`,
-                base: 'develop',
-                body: `# Release ${{ steps.version.outputs.new_version }} - Back merge\n\nAutomatic merge back to develop branch.`
-              });
-              console.log(`Created PR #${pr.number}`);
-            } catch (error) {
-              console.log(`Note: Could not create PR back to develop: ${error.message}`);
-              console.log(`Release branch: ${{ env.release_branch }}`);
-              console.log(`You can manually create a PR from ${{ env.release_branch }} to develop`);
-            }
-
       - name: Release Summary
         run: |
           echo "## Release Created Successfully! 🎉" >> $GITHUB_STEP_SUMMARY
@@ -198,3 +143,8 @@ jobs:
           echo "| Release Branch | ${{ env.release_branch }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Base Branch | ${{ env.base_branch }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Tag | ${{ steps.version.outputs.new_version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review the release branch: ${{ env.release_branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "2. Manually create PR from ${{ env.release_branch }} → main" >> $GITHUB_STEP_SUMMARY
+          echo "3. Manually create PR from ${{ env.release_branch }} → develop (if needed)" >> $GITHUB_STEP_SUMMARY

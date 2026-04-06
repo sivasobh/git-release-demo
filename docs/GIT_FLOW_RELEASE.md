@@ -183,7 +183,9 @@ git push origin --delete release/v1.2.3
 ### GitHub Token
 Ensure `GIT_TOKEN` has these permissions:
 - `contents: write` (for releases, tags, branches)
-- `pull-requests: write` (for creating PRs)
+- `pull-requests: write` (for creating PRs - optional, workflow handles gracefully if missing)
+
+**Note:** If your token lacks pull request permissions, the workflow will still create the release and tag, but you'll need to manually create merge PRs.
 
 ### Branch Protection
 Consider protecting `main` and `develop`:
